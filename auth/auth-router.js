@@ -1,9 +1,28 @@
 const router = require('express').Router();
+const bc = require('bcryptjs');
 
 const Users = require('../users/users-model.js');
 
+router.get("/secret", (req, res, next) => {
+  if(req.headers.authorization){
+    bc.hash(req.headers.authorization, 10, (err, hash) => { 
+      if (err) {
+      res.status(500).json({oops: "it broke"});
+    } else {
+      res.status(200).json({ hash });
+    }
+      });
+      } else {
+      res.status(400).json({error: "missing header"});
+    }
+
+});
+
 router.post('/register', (req, res) => {
   let user = req.body;
+
+  const hash = bc.hashSync(req.body.password, 10);
+  user.password = hash;
 
   Users.add(user)
     .then(saved => {
@@ -20,7 +39,15 @@ router.post('/login', (req, res) => {
   Users.findBy({ username })
     .first()
     .then(user => {
-      if (user) {
+      if (user && bc.compareSync(password, user.password)) {
+        // if (user) {
+                // compare().then(match => {
+                //   if (match) {
+                //     // good password
+                //   } else {
+                //     // they don't match
+                //   }
+                // }).catch()
         res.status(200).json({ message: `Welcome ${user.username}!` });
       } else {
         res.status(401).json({ message: 'Invalid Credentials' });
